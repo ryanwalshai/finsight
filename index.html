@@ -5863,6 +5863,18 @@ function SettingsView() {
           <input ref={backupRef} type="file" accept=".json" style={{display: 'none'}} onChange={e => { if (e.target.files && e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; }} />
         </div>
       </Card>
+      {/* The whole privacy policy, in the app rather than behind a link. The App Store wants a URL
+          and there is one, but a policy you have to leave the app and trust a web page to read is
+          a policy nobody reads — and this one is short because the app does so little. */}
+      <Card title="Privacy" icon="shield" info="What FinSight collects, which is nothing, and what that means in practice.">
+        <div className="stack" style={{gap: 10}}>
+          <div className="small muted"><b style={{color: 'var(--text)'}}>Nothing is collected.</b> No account, no server, no analytics, no advertising identifier, no third-party code. Everything you type stays in this app's own storage on this device.</div>
+          <div className="small muted">A payslip PDF is read here and never uploaded. A backup is made only when you ask, goes wherever you send it, and deliberately leaves your PIN behind.</div>
+          <div className="small muted">The app makes no network requests at all — not as a promise, but because the page forbids them and the app is built without permission to make one. It works the same in airplane mode.</div>
+          <div className="small muted">Turn on the app lock and iOS does the checking. Your face or fingerprint is never given to the app and never leaves the device.</div>
+          <div className="small dim">Deleting the app, or Reset all data below, removes everything. There is nothing held anywhere else to ask for.</div>
+        </div>
+      </Card>
       <Card title="Danger zone" icon="alert" info="Deletes everything FinSight holds in this browser. There is no undo. Export a backup first.">
         <div className="stack">
           <div className="setrow"><div><b className="small">Load demo data</b><div className="small dim">Replaces current data with the demo dataset.</div></div>
