@@ -58,13 +58,19 @@
 	</dict>
 
 	<!--
-	  Backups are ordinary JSON and belong to the person who made them. Exposing the app's
-	  documents in Files means a backup can be dragged out, kept, or handed to a new phone
-	  without going through the share sheet at all.
+	  Export compliance, answered once here rather than at every upload. FinSight uses SHA-256 to
+	  hash the app-lock PIN and WebAuthn for Face ID — both are standard cryptography provided by
+	  the operating system, which is exempt. Declaring it false stops App Store Connect stopping
+	  to ask, and stops anyone answering it wrong in a hurry.
 	-->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!--
+	  There is deliberately no UIFileSharingEnabled here. It used to be set, which put a FinSight
+	  folder in the Files app — and nothing is ever written to Documents, since a backup goes to
+	  the temporary directory and straight out through the share sheet. All it did was promise a
+	  folder of your data that turns out to be empty.
+	-->
 </dict>
 </plist>

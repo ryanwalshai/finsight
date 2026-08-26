@@ -11,6 +11,7 @@
 		AA0000000000000000000041 /* WebHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000031 /* WebHost.swift */; };
 		AA0000000000000000000044 /* NativeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000035 /* NativeBridge.swift */; };
 		AA0000000000000000000045 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000036 /* AppLock.swift */; };
+		AA0000000000000000000046 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000038 /* PrivacyInfo.xcprivacy */; };
 		AA0000000000000000000042 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000032 /* Assets.xcassets */; };
 		AA0000000000000000000043 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000033 /* index.html */; };
 /* End PBXBuildFile section */
@@ -21,6 +22,7 @@
 		AA0000000000000000000031 /* WebHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebHost.swift; sourceTree = "<group>"; };
 		AA0000000000000000000035 /* NativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBridge.swift; sourceTree = "<group>"; };
 		AA0000000000000000000036 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
+		AA0000000000000000000038 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA0000000000000000000037 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000000000000000000032 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0000000000000000000033 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = SOURCE_ROOT; };
@@ -63,6 +65,7 @@
 				AA0000000000000000000036 /* AppLock.swift */,
 				AA0000000000000000000032 /* Assets.xcassets */,
 				AA0000000000000000000037 /* Info.plist */,
+				AA0000000000000000000038 /* PrivacyInfo.xcprivacy */,
 			);
 			path = FinSight;
 			sourceTree = "<group>";
@@ -127,6 +130,7 @@
 			files = (
 				AA0000000000000000000043 /* index.html in Resources */,
 				AA0000000000000000000042 /* Assets.xcassets in Resources */,
+				AA0000000000000000000046 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

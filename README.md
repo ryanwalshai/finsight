@@ -66,6 +66,34 @@ on your own device, set a Team under Signing & Capabilities.
 
 iPhone only, portrait only, dark. `TARGETED_DEVICE_FAMILY = 1`.
 
+## Submitting it
+
+What is in the repo:
+
+- **`FinSight/PrivacyInfo.xcprivacy`** — the privacy manifest, copied into the bundle by the
+  Resources phase. It declares no collected data, no tracking, and one required-reason API:
+  `UserDefaults` under `CA92.1`, for the single boolean saying whether the app lock is on. This
+  is checked by App Store Connect before a human sees the build, so a missing one is an automated
+  rejection rather than a review note. There are no third-party SDKs, so nothing else to declare.
+- **`ITSAppUsesNonExemptEncryption` = false** in `Info.plist`. SHA-256 for the PIN and WebAuthn
+  for Face ID are OS-provided standard cryptography, which is exempt. Answered once here rather
+  than at every upload.
+- **`privacy.html`** at the repo root, served from the same Pages site. That is the privacy policy
+  URL App Store Connect asks for — required even for an app that collects nothing. The same words
+  are a card in Settings. **Its contact address is a placeholder and must be replaced.**
+
+What still has to be done outside the repo: screenshots, description, keywords, support URL,
+privacy policy URL, and the age questionnaire. The App Privacy answer is *Data Not Collected*.
+
+One line is worth writing in the App Review notes, because half of Guideline 2.1 rejections are
+really reviewer-notes failures: **the second step of onboarding offers "Load demo data", which
+fills every screen in two taps — no account, no credentials, nothing to send us.**
+
+The judgement call at review is Guideline 4.2, which exists to reject a web view with an icon on
+it. The answer is the native layer above: a Face ID gate that runs before the dashboard loads, the
+app-switcher shade, Home Screen quick actions, share-sheet export, Files import, haptics, and no
+white screen because the page is in the bundle.
+
 ## Security
 
 The same posture as the web version, plus what the platform adds.

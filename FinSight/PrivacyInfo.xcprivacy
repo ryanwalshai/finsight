@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Apple's privacy manifest. Required since May 2024, and checked by App Store Connect before
+	  a human ever sees the build — a missing one is an automated rejection email rather than a
+	  review note, which is why it is the most common way a finished app fails to reach review.
+
+	  FinSight's is close to empty, and honestly so. There is one required-reason API and there
+	  are no third-party SDKs to declare, because there are no third-party SDKs.
+	-->
+
+	<!-- Nothing is collected. No account, no server, no analytics, no identifiers. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- Nothing is tracked, so there is no tracking domain to name either. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!--
+		  UserDefaults, for one boolean: whether the app lock is on. CA92.1 is the reason for
+		  reading and writing defaults that belong to this app alone — no app group, no shared
+		  container, nothing another app or an SDK could see.
+		-->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
