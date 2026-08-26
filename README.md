@@ -35,6 +35,7 @@ actually want on a finance app you keep on your phone.
 | **Share sheet exports** | `<a download>` does nothing inside a web view. Backups are intercepted and handed to the real share sheet: Files, iCloud Drive, AirDrop, Mail. |
 | **Files import** | Restore a backup straight from Files or iCloud, which a page in a browser cannot reach. It goes through the same guarded restore as any other file. |
 | **Haptics** | A confirmation you can feel without looking. |
+| **Dynamic Type** | A web view ignores the system text size, which is how wrapped apps end up unusable for anyone who has turned it up. The content size category is mapped to page zoom, capped so the dashboard is never laid out narrower than the width it is tested down to. |
 | **Offline by construction** | The page is in the bundle. There is no remote page to fail to arrive and no white screen where one would have been. |
 
 The same `index.html` still runs in a browser. Every native call is feature-detected against
@@ -48,12 +49,16 @@ and `setLock`, and nothing in it accepts a path or a URL that Swift then acts on
 
 ```
 FinSight/
-  FinSightApp.swift    app entry, scene phase, quick action routing
-  AppLock.swift        Face ID / passcode gate and the privacy shade
-  WebHost.swift        the WKWebView, navigation policy, share sheet, Files picker
-  NativeBridge.swift   the one message channel, and the script injected into the page
-  Info.plist           quick actions, launch screen, Files exposure
-index.html             the dashboard itself — copied into the bundle, not a duplicate
+  FinSightApp.swift      app entry, scene phase, quick action routing
+  AppLock.swift          Face ID / passcode gate and the privacy shade
+  WebHost.swift          the WKWebView, navigation policy, share sheet, Files picker, Dynamic Type
+  NativeBridge.swift     the one message channel, and the script injected into the page
+  Info.plist             quick actions, launch screen, export compliance
+  PrivacyInfo.xcprivacy  the privacy manifest App Store Connect checks before review
+index.html               the dashboard itself — copied into the bundle, not a duplicate
+privacy.html             the policy, at the URL App Store Connect asks for
+support.html             the support page, at the other URL it asks for
+APPSTORE.md              the submission pack: every field, its answer, and why
 ```
 
 The Xcode project references `index.html` at the repo root rather than a copy, so there is no
@@ -68,22 +73,30 @@ iPhone only, portrait only, dark. `TARGETED_DEVICE_FAMILY = 1`.
 
 ## Submitting it
 
-What is in the repo:
+**[`APPSTORE.md`](APPSTORE.md) is the submission pack**: every field App Store Connect asks for
+with its answer, the description, the keywords, the review notes to paste in verbatim, the age
+questionnaire, and a walk through where submissions actually fail with what was done here about
+each one. Read that before opening App Store Connect. What is in the repo for it:
 
 - **`FinSight/PrivacyInfo.xcprivacy`** — the privacy manifest, copied into the bundle by the
   Resources phase. It declares no collected data, no tracking, and one required-reason API:
   `UserDefaults` under `CA92.1`, for the single boolean saying whether the app lock is on. This
   is checked by App Store Connect before a human sees the build, so a missing one is an automated
   rejection rather than a review note. There are no third-party SDKs, so nothing else to declare.
-- **`ITSAppUsesNonExemptEncryption` = false** in `Info.plist`. SHA-256 for the PIN and WebAuthn
-  for Face ID are OS-provided standard cryptography, which is exempt. Answered once here rather
-  than at every upload.
-- **`privacy.html`** at the repo root, served from the same Pages site. That is the privacy policy
-  URL App Store Connect asks for — required even for an app that collects nothing. The same words
-  are a card in Settings. **Its contact address is a placeholder and must be replaced.**
+- **`ITSAppUsesNonExemptEncryption` = false** in `Info.plist`. The only cryptography is SHA-256
+  from the OS's own WebCrypto, hashing the app-lock PIN; Face ID is LocalAuthentication, a check
+  rather than a cipher. Both are exempt. Answered once here rather than at every upload.
+- **`privacy.html`** and **`support.html`** at the repo root, served from the same Pages site.
+  Those are the two URLs App Store Connect asks for — the policy is required even for an app that
+  collects nothing, and a Support URL that 404s is one of the commonest first-round rejections.
+  Neither offers an email address: questions go to the public issue tracker, so an app that
+  collects nothing is not quietly running an inbox that collects something.
+- **The policy is in the app as well**, from the same array the first-run screen reads, so the two
+  cannot drift apart. It is accepted on first launch and readable afterwards under Settings →
+  Backup & data → Privacy.
 
-What still has to be done outside the repo: screenshots, description, keywords, support URL,
-privacy policy URL, and the age questionnaire. The App Privacy answer is *Data Not Collected*.
+What still has to be done outside the repo: screenshots, and pasting the metadata from
+`APPSTORE.md` in. The App Privacy answer is *Data Not Collected*.
 
 One line is worth writing in the App Review notes, because half of Guideline 2.1 rejections are
 really reviewer-notes failures: **the second step of onboarding offers "Load demo data", which
@@ -91,8 +104,8 @@ fills every screen in two taps — no account, no credentials, nothing to send u
 
 The judgement call at review is Guideline 4.2, which exists to reject a web view with an icon on
 it. The answer is the native layer above: a Face ID gate that runs before the dashboard loads, the
-app-switcher shade, Home Screen quick actions, share-sheet export, Files import, haptics, and no
-white screen because the page is in the bundle.
+app-switcher shade, Home Screen quick actions, share-sheet export, Files import, haptics, Dynamic
+Type carried into the page as zoom, and no white screen because the page is in the bundle.
 
 ## Security
 
@@ -116,8 +129,9 @@ The same posture as the web version, plus what the platform adds.
 
 Current accounts, savings, pots, credit cards and cash ISAs under **Accounts**. Stocks & Shares
 ISAs, general investing, bonds and crypto under **Investments** — a broker like Trading 212 is a
-name you give an account, not a kind of account. **Mortgage** takes what you owe, the rate and the
-term and works out the payment, the interest split, when it clears and what an overpayment saves.
+name you give an account, not a kind of account. **Mortgage &amp; loans** takes what you owe, the
+rate and the term and works out the payment, the interest split, when each debt clears and what an
+overpayment saves — plus a calculator for a mortgage or loan you are only thinking about.
 **Goals** holds your targets; **Strategies** holds the rules of thumb and the debt payoff model,
 which takes each card's rate, how you pay it and any 0% window.
 

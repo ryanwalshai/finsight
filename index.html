@@ -655,7 +655,10 @@ textarea.input{height:auto;padding:10px 12px;resize:vertical;min-height:60px}
 .fire-sum .fire-x{flex:none;padding:0;background:none;font-family:var(--font-mono);font-size:14px;color:var(--dim);
   display:block;align-self:center}
 /* the per-month suffix on a tile's headline figure */
-.tile-per{font-family:var(--font);font-size:13px;font-weight:500;color:var(--dim);letter-spacing:0;margin-left:2px}
+/* In em rather than px so it shrinks with the figure it is attached to — a fixed 13px "/mo" beside
+   a value that scales is what makes the fit calculation on .tile-val come out wrong on a small
+   phone. .565em is 13px at the full 23px size, so nothing changes where there is room. */
+.tile-per{font-family:var(--font);font-size:.565em;font-weight:500;color:var(--dim);letter-spacing:0;margin-left:2px}
 
 /* ---------- sliders you read rather than decode ---------- */
 .traj-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:14px}
@@ -690,6 +693,9 @@ textarea.input{height:auto;padding:10px 12px;resize:vertical;min-height:60px}
 /* One borrowing figure: what it is called, what it is, and the slider that changes it. The
    value sits on the same line as the label rather than under the slider, so the thing you are
    watching does not move as your thumb covers the bottom of the row. */
+.priv-lead{font-size:14.5px;line-height:1.55;padding:13px 15px;border-radius:16px;
+  background:var(--accent-dim);border:1px solid var(--border2)}
+.priv-lead b{color:var(--text)}
 .calc-rows{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .calc-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;cursor:pointer}
 .calc-row .cr-k{font-size:13px;color:var(--muted);align-self:center}
@@ -1238,14 +1244,25 @@ h1,h2,h3,.greet-title,.sec-title,.card-title,.eyebrow{text-wrap:balance}
    A bento rather than a stack. Four things worth a glance sit two-up on a phone, so the whole
    answer to "how am I doing" fits above the fold instead of being four scrolls of prose. Each
    tile is a link into the screen that explains it; none of them is only a number. */
-.bento{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+/* Two tiles to a row, each holding a currency figure that has no fixed width. At 23px a figure
+   like £2,727.71/mo wants 143px and a tile on a small phone has 87px to give it, so it used to
+   run out over its neighbour. The size is now solved rather than guessed: the tile's share of the
+   container is (100cqi − gap)/2 − padding, and the font that fits a figure of that length in it
+   is the affine expression below — 15px where there is 258px of container, 20px at 317px, and the
+   full 23px once there is room for it. Nowrap and an ellipsis catch a figure longer than any of
+   this was calibrated for, because a truncated number is at least still inside its own tile. */
+.bento{display:grid;grid-template-columns:1fr 1fr;gap:11px;container-type:inline-size}
 .tile{position:relative;display:flex;flex-direction:column;gap:9px;min-height:132px;padding:15px 15px 14px;
   background:var(--surface);border:none;border-radius:var(--radius-sm);text-align:left;font-family:inherit;color:var(--text);
   cursor:pointer;transition:transform .15s var(--spring),background .2s var(--ease)}
 .tile:active{transform:scale(.975)}
-.tile-head{display:flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:10px;font-weight:700;
+/* Same reasoning as the value below, for the label above it: "EXTINGUISHER" is one word, tracked
+   out, and cannot be broken, so on a small phone it was 17px wider than the tile it sat in. */
+.tile-head{display:flex;align-items:center;gap:6px;font-family:var(--font-display);
+  font-size:clamp(8.3px,3.45cqi,10px);font-weight:700;
   letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
-.tile-val{font-family:var(--font-mono);font-size:23px;font-weight:600;letter-spacing:-.045em;line-height:1}
+.tile-val{font-family:var(--font-mono);font-size:clamp(13px,calc(7.8cqi - 5.7px),23px);font-weight:600;
+  letter-spacing:-.045em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile-sub{font-size:12px;color:var(--muted);line-height:1.35;text-wrap:pretty}
 /* the ring: a value arc over a track, with whatever you want in the middle */
 .ring{position:relative;flex:none;display:grid;place-items:center}
@@ -1886,6 +1903,13 @@ const uid = (): string => Math.random().toString(36).slice(2, 10) + Date.now().t
    Both are no-ops otherwise, so a call site never has to ask which it is. */
 const native = (): any => (window as any).__finsightNative || null;
 const haptic = (kind = 'light') => { const n = native(); if (n) n.haptic(kind); };
+/* Whether the words on screen should be a browser's or an app's. The same file runs in both, and
+   "your data lives in this browser" is wrong in an app the way "add this to your Home Screen" is
+   wrong on a Home Screen. The bridge is injected before this script runs, so this is settled from
+   the first render and never changes underneath a component. */
+const inApp = (): boolean => !!native();
+/** The right noun for wherever this copy is running. `where('this browser', 'the app')`. */
+const where = (web: string, app: string) => (inApp() ? app : web);
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -2487,7 +2511,7 @@ function persistState(s: any) {
     // save is already gone on reload. Say so once, rather than every keystroke.
     if (!persistFailed) {
       persistFailed = true;
-      alert('FinSight cannot save to this browser\'s storage, so changes made now will be lost when you reload.\n\nExport a backup from Settings → Backup and keep it somewhere safe.');
+      alert('FinSight cannot save to ' + where('this browser\'s storage', 'this iPhone\'s storage') + ', so changes made now will be lost when you reload.\n\nExport a backup from Settings → Backup and keep it somewhere safe.');
     }
   }
 }
@@ -2780,31 +2804,84 @@ function Modal({title, icon, onClose, children, foot, wide}: any) {
    is the one place a reader has already decided to look at rules of thumb — everywhere else in
    the app, the projections and the tips, went without saying it. A sheet you have to accept says
    it once, properly, wherever you started. */
-let disclaimerSeen = false;
+/* ---------- the privacy policy, once ----------
+   Written here rather than only on a web page, because a policy you have to leave the app and
+   trust a browser to fetch is a policy nobody reads — and this one has to be readable on a plane.
+   The same array is what the first-run screen shows you and what Settings shows you afterwards,
+   so the two can never say different things.
+
+   PRIVACY_VERSION is what was accepted. Bump it and everyone is asked again, which is the only
+   honest way to change the terms of something like this. */
+const PRIVACY_VERSION = 1;
+/** Shown in Settings, and the thing to quote when reporting something. Matches MARKETING_VERSION. */
+const APP_VERSION = '1.0';
+/** Where questions go. Deliberately a public tracker and not an inbox — see the policy. */
+const SUPPORT_URL = 'https://github.com/hvrkwd24ct-prog/finsight/issues';
+/** The same address as somebody would read it out, which is how it is shown on screen. */
+const SUPPORT_LABEL = SUPPORT_URL.replace(/^https?:\/\//, '');
+const PRIVACY_SECTIONS: [string, any][] = [
+  ['Nothing is collected', <>No account, no sign-up, no server, no analytics, no advertising identifier and no
+    third-party code. Your name, balances, accounts, income, spending, goals and payslips are not collected,
+    transmitted, sold or shared, and nobody but you ever sees them.</>],
+  ['Where your figures live', <>Everything you enter stays in this app's own storage on this device, covered by
+    your device passcode and iOS data protection. If you back your phone up, FinSight's data is in that backup
+    the way every other app's is, governed by Apple's terms rather than ours.</>],
+  ['Payslips and backups', <>A payslip PDF is read on this device, by code that ships inside the app, and is
+    never uploaded — only the figures you confirm are kept. A backup file is created only when you ask for one,
+    goes wherever you send it, and deliberately leaves your PIN behind.</>],
+  ['Face ID and Touch ID', <>If you turn the app lock on, iOS does the checking. Your face or fingerprint is
+    never given to the app, never stored by it and never leaves the device. FinSight is told only whether the
+    check passed.</>],
+  ['The network', <>FinSight makes no network requests of any kind. That is enforced rather than promised: the
+    page forbids them outright and the app is built without permission to make one. It works the same in
+    airplane mode.</>],
+  ['Getting rid of it', <>Deleting the app removes everything, and so does Reset all data in Settings. There is
+    nothing held anywhere else for you to ask us about.</>],
+  ['Not financial advice', <>FinSight keeps your figures and does arithmetic on them. The strategies it shows are
+    well-known rules of thumb written for a general audience — most for another country or another decade — and
+    they contradict each other. The projections assume the future carries on resembling the recent past, which
+    it need not. None of it knows your income security, your tax position, your health or your family. Treat all
+    of it as a starting point for thinking, and if a decision matters, take it to an adviser regulated to give
+    advice on it.</>],
+  ['Questions and problems', <>There is no address to write to, on purpose: an inbox for an app that collects
+    nothing would be the only place your details ever ended up. Questions, bugs and requests go to the public
+    tracker at <b>{SUPPORT_LABEL}</b>, where the answer is visible to everybody who
+    had the same question.</>],
+];
+
+/** The policy itself, laid out the same wherever it appears. */
+function PrivacyBody({lead = true}: any) {
+  return <>
+    {lead && <div className="priv-lead"><b>FinSight collects nothing.</b> Everything you type stays on this
+      device, and the app has no way to send it anywhere.</div>}
+    <div className="stack" style={{gap: 14, marginTop: lead ? 14 : 0}}>
+      {PRIVACY_SECTIONS.map(([h, body]) => <div key={h}>
+        <b className="small" style={{display: 'block', marginBottom: 3}}>{h}</b>
+        <span className="small muted" style={{lineHeight: 1.6}}>{body}</span>
+      </div>)}
+    </div>
+  </>;
+}
+
+/* The one thing standing between a fresh install and the app. It is the privacy policy and the
+   not-advice notice together, because they are the two things somebody should have read before
+   typing their money into anything, and two sheets in a row is one sheet nobody reads. */
 function Disclaimer({onClose}: any) {
-  const {state, update} = useApp();
-  const [hide, setHide] = useState(!!state.prefs.disclaimerHide);
+  const {update} = useApp();
   const accept = () => {
-    if (hide !== !!state.prefs.disclaimerHide) update((s: any) => { s.prefs.disclaimerHide = hide; });
+    update((s: any) => { s.prefs.privacyAccepted = PRIVACY_VERSION; s.prefs.disclaimerHide = true; });
+    haptic('success');
     onClose();
   };
-  return <Modal title="Before you start" icon="alert" onClose={accept}
+  /* No close button and no dismiss-by-backdrop: this is the one modal in the app you answer
+     rather than escape, which is what makes accepting it mean anything. */
+  return <Modal title="Privacy, and one warning" icon="shield" wide
     foot={<>
-      <label className="chk"><input type="checkbox" checked={hide} onChange={e => setHide(e.target.checked)} />Do not show this again</label>
+      <span className="small dim">Readable again any time in Settings.</span>
       <span className="spacer" />
-      <button className="btn primary" onClick={accept}><Icon name="check" size={13} /> Accept</button>
+      <button className="btn primary" onClick={accept}><Icon name="check" size={13} /> Accept and continue</button>
     </>}>
-    <p className="small" style={{lineHeight: 1.6}}>
-      <b style={{color: 'var(--text)'}}>FinSight is not financial advice.</b> It is a place to keep your own
-      figures and look at them from a few angles. The strategies it shows you are somebody's rules of
-      thumb, written for a general audience and most of them for another country or another decade;
-      they contradict each other. The projections are arithmetic on what you have entered, and they
-      assume the future carries on resembling the recent past, which it need not. None of it knows
-      your income security, your tax position, your health, your family or what you are actually
-      trying to do with your life. Treat all of it as a starting point for thinking rather than a
-      recommendation to act, and if a decision matters, take it to an adviser regulated to give
-      advice on it.
-    </p>
+    <PrivacyBody />
   </Modal>;
 }
 
@@ -5789,22 +5866,51 @@ function StorageHealth() {
   const size = (n: number) => n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' GB'
     : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB'
     : Math.max(1, Math.round(n / 1024)) + ' KB';
-  const state = info.persisted === true ? ['ok', 'Persistent', 'This browser has been asked not to clear FinSight to reclaim space.']
+  /* In the app none of the browser's rules apply: this is the app's own container on your
+     iPhone, nothing evicts it to reclaim space, and there is nobody to ask for permission. Saying
+     "the browser may clear this" to somebody holding an app would be untrue as well as puzzling. */
+  const state = inApp() ? ['ok', 'Protected', 'This is the FinSight app’s own storage on your iPhone. Nothing clears it but deleting the app.']
+    : info.persisted === true ? ['ok', 'Persistent', 'This browser has been asked not to clear FinSight to reclaim space.']
     : info.persisted === false ? ['warn', 'Best effort', 'The browser may clear this data if it runs low on space, or if you go a long time without opening FinSight.']
     : ['warn', 'Unknown', 'This browser does not report whether it will keep the data.'];
 
-  return <Card title="Storage" icon="layers" info="Where this copy of your data lives and how much room it takes. Browsers can clear ordinary site storage. This says whether yours is protected, and export a backup either way.">
+  return <Card title="Storage" icon="layers" info={inApp()
+    ? 'Where this copy of your data lives and how much room it takes. It is the app’s own storage on this iPhone, and it goes when the app goes — so keep a backup.'
+    : 'Where this copy of your data lives and how much room it takes. Browsers can clear ordinary site storage. This says whether yours is protected, and export a backup either way.'}>
     <div className="stack">
       <div className="setrow"><div><b className="small">Durability</b><div className="small dim">{state[2]}</div></div>
         <span className={'chip ' + (state[0] === 'ok' ? 'grn' : 'amb')}>{state[1]}</span></div>
-      {info.persisted === false && <div className="setrow"><div><b className="small">Ask to keep it</b><div className="small dim">Some browsers grant this outright; Safari decides for itself based on how often you visit.</div></div>
+      {!inApp() && info.persisted === false && <div className="setrow"><div><b className="small">Ask to keep it</b><div className="small dim">Some browsers grant this outright; Safari decides for itself based on how often you visit.</div></div>
         <button className="btn" disabled={asking} onClick={request}><Icon name="shield" size={13} /> {asking ? 'Asking…' : 'Request'}</button></div>}
       <div className="setrow"><div><b className="small">In use</b><div className="small dim">{info.quota ? size(info.used) + ' of roughly ' + size(info.quota) + ' available' : size(info.used) + ' of FinSight data'}</div></div></div>
-      <div className="setrow"><div><b className="small">Running as</b><div className="small dim">{standalone
+      <div className="setrow"><div><b className="small">Running as</b><div className="small dim">{inApp()
+        ? 'The FinSight app on this iPhone. Your figures sit inside it, covered by your device passcode.'
+        : standalone
         ? 'A Home Screen app, its storage is separate from the same page opened in the browser.'
         : 'A browser tab. On iPhone, Share → Add to Home Screen gives FinSight its own storage that Safari does not clear on its usual schedule.'}</div></div>
-        <span className={'chip ' + (standalone ? 'grn' : '')}>{standalone ? 'Installed' : 'Browser'}</span></div>
+        <span className={'chip ' + (inApp() || standalone ? 'grn' : '')}>{inApp() ? 'App' : standalone ? 'Installed' : 'Browser'}</span></div>
     </div>
+  </Card>;
+}
+
+/* Somewhere to go when something is wrong, which every app needs and most bury. The three
+   answers that actually resolve things are here in order of how often they work, and the last
+   one is a public tracker rather than an address to write to: an app that collects nothing
+   should not be running an inbox that collects something. */
+function Help() {
+  const {update, navigate} = useApp();
+  return <Card title="Help and support" icon="info"
+    info="What to try when something looks wrong, and where to report it if it is. FinSight works offline and has no account, so there is nothing to sign into and nothing to recover."
+    right={<span className="chip">v{APP_VERSION}</span>}>
+    <div className="stack">
+      <div className="setrow"><div><b className="small">Not sure what a figure means</b><div className="small dim">Every card has an <b>i</b> in its corner that explains what it is counting and where the number came from.</div></div></div>
+      <div className="setrow"><div><b className="small">Want to see it filled in</b><div className="small dim">Load the demo dataset from Backup &amp; data — fifteen months of figures on every screen. It replaces what is there, so export first.</div></div>
+        <button className="btn" onClick={() => navigate('settings', {tab: 'backup'})}>Backup &amp; data</button></div>
+      <div className="setrow"><div><b className="small">Lost, or starting again</b><div className="small dim">Reopen the setup assistant above. Nothing you have entered is deleted by doing it.</div></div>
+        <button className="btn" onClick={() => update((s: any) => { s.onboarded = false; })}><Icon name="sparkle" size={13} /> Setup</button></div>
+      <div className="setrow"><div><b className="small">Something is broken</b><div className="small dim">Report it at <b>{SUPPORT_LABEL}</b>, with the version above. It is a public tracker, so leave your figures out of it — and there is no need to send them, since nothing here depends on knowing them.</div></div></div>
+    </div>
+    <div className="small dim" style={{marginTop: 12}}>FinSight does arithmetic on figures you type in. It is not regulated financial advice, it is not connected to any bank or broker, and it never moves money.</div>
   </Card>;
 }
 
@@ -5853,11 +5959,12 @@ function SettingsView() {
         <div className="small dim" style={{marginBottom: 12}}>Used wherever you record a holding priced in dollars or euros. Nothing is looked up: these are the rates FinSight converts at until you change them.</div>
         <button className="btn" onClick={() => update((s: any) => { s.onboarded = false; })}><Icon name="sparkle" size={13} /> Reopen onboarding / setup assistant</button>
       </Card>
+      <Help />
     </div>}
     {tab === 'backup' && <div className="grid g2">
       <StorageHealth />
-      <Card title="Backup" icon="download" info="Your data lives only in this browser, so a backup file is the only way to move it to another device or get it back. Export regularly.">
-        <p className="small muted" style={{marginBottom: 12}}>Everything lives in this browser's local storage, and a backup file is the only copy that survives clearing it, changing phone or losing the device. It holds every account, balance, payslip, bill, target and note. Export one now and again.</p>
+      <Card title="Backup" icon="download" info={'Your data lives only ' + where('in this browser', 'on this iPhone') + ', so a backup file is the only way to move it to another device or get it back. Export regularly.'}>
+        <p className="small muted" style={{marginBottom: 12}}>Everything lives {where('in this browser\'s local storage', 'inside the app on this iPhone')}, and a backup file is the only copy that survives {where('clearing it', 'deleting the app')}, changing phone or losing the device. It holds every account, balance, payslip, bill, target and note. Export one now and again.</p>
         <div className="row wrap">
           <button className="btn primary" onClick={() => { haptic('success'); exportBackup(); }}><Icon name="download" size={13} /> Export backup</button>
           {/* In the iPhone app the file lives in Files or iCloud, not behind a browser picker. */}
@@ -5868,24 +5975,21 @@ function SettingsView() {
         </div>
         {native() && <div className="small dim" style={{marginTop: 10}}>Exporting opens the share sheet, so a backup can go to Files, iCloud Drive, AirDrop or anywhere else you keep things.</div>}
       </Card>
-      {/* The whole privacy policy, in the app rather than behind a link. The App Store wants a URL
-          and there is one, but a policy you have to leave the app and trust a web page to read is
-          a policy nobody reads — and this one is short because the app does so little. */}
-      <Card title="Privacy" icon="shield" info="What FinSight collects, which is nothing, and what that means in practice.">
-        <div className="stack" style={{gap: 10}}>
-          <div className="small muted"><b style={{color: 'var(--text)'}}>Nothing is collected.</b> No account, no server, no analytics, no advertising identifier, no third-party code. Everything you type stays in this app's own storage on this device.</div>
-          <div className="small muted">A payslip PDF is read here and never uploaded. A backup is made only when you ask, goes wherever you send it, and deliberately leaves your PIN behind.</div>
-          <div className="small muted">The app makes no network requests at all — not as a promise, but because the page forbids them and the app is built without permission to make one. It works the same in airplane mode.</div>
-          <div className="small muted">Turn on the app lock and iOS does the checking. Your face or fingerprint is never given to the app and never leaves the device.</div>
-          <div className="small dim">Deleting the app, or Reset all data below, removes everything. There is nothing held anywhere else to ask for.</div>
-        </div>
+      {/* The policy, in full, from the same source the first-run screen reads. Not a summary and
+          not a link: on a plane, a link is a dead end, and a summary is a second wording to keep
+          in step with the first. */}
+      <Card title="Privacy" icon="shield"
+        info="What FinSight collects, which is nothing, and what that means in practice. This is the whole policy, not a summary of one."
+        right={<span className="chip grn">accepted</span>}>
+        <PrivacyBody lead={false} />
+        <div className="small dim" style={{marginTop: 14}}>You accepted this when you first opened FinSight. It has not changed since.</div>
       </Card>
-      <Card title="Danger zone" icon="alert" info="Deletes everything FinSight holds in this browser. There is no undo. Export a backup first.">
+      <Card title="Danger zone" icon="alert" info={'Deletes everything FinSight holds ' + where('in this browser', 'on this iPhone') + '. There is no undo. Export a backup first.'}>
         <div className="stack">
           <div className="setrow"><div><b className="small">Load demo data</b><div className="small dim">Replaces current data with the demo dataset.</div></div>
             <button className="btn" onClick={() => { if (confirm('Replace all current data with demo data?')) loadDemo(); }}><Icon name="bolt" size={13} /> Load demo</button></div>
-          <div className="setrow"><div><b className="small">Reset everything</b><div className="small dim">Deletes every account, balance, payslip and setting from this browser. Cannot be undone.</div></div>
-            <button className="btn danger" onClick={() => { if (confirm('Delete ALL FinSight data from this browser? This cannot be undone.') && confirm('Really sure? Export a backup first if in doubt.')) { localStorage.removeItem(STORE_KEY); location.reload(); } }}><Icon name="trash" size={13} /> Reset all data</button></div>
+          <div className="setrow"><div><b className="small">Reset everything</b><div className="small dim">Deletes every account, balance, payslip and setting from {where('this browser', 'this iPhone')}. Cannot be undone.</div></div>
+            <button className="btn danger" onClick={() => { if (confirm('Delete ALL FinSight data from ' + where('this browser', 'this iPhone') + '? This cannot be undone.') && confirm('Really sure? Export a backup first if in doubt.')) { localStorage.removeItem(STORE_KEY); location.reload(); } }}><Icon name="trash" size={13} /> Reset all data</button></div>
         </div>
       </Card>
     </div>}
@@ -7119,7 +7223,7 @@ function StrategiesView() {
   const {state, M, navigate, openDisclaimer} = useApp();
   /* Raised on arrival, unless it has already been seen since the app was opened or the reader
      has ticked it away for good. The button in the header brings it back either way. */
-  useEffect(() => { if (!state.prefs.disclaimerHide && !disclaimerSeen) openDisclaimer(); }, []);
+  
   /* Every figure on this screen is a share of a month, and which month is a real question.
      Three months is the steadier answer: it absorbs the holiday, the annual insurance bill and
      the month you were paid twice. Last month is the sharper one, and the only one that shows a
@@ -7706,7 +7810,12 @@ function LockSettings() {
       {!lock.on
         ? <span className="small dim">Set a PIN first. Face ID unlocks on top of it, and the PIN is what remains when a face is not recognised.</span>
         : !canBio
-          ? <span className="small dim">This device or browser has no Face ID, Touch ID or fingerprint FinSight can ask. On an iPhone, open FinSight in Safari over https and add it to your Home Screen.</span>
+          ? <span className="small dim">{inApp()
+            /* In the app the real Face ID gate is the native one above, run by iOS before the
+               dashboard is even loaded. Sending somebody to Safari from inside the app they are
+               holding would be nonsense; sending them one card up is the actual answer. */
+            ? 'Face ID here is the app’s own, on the Lock with Face ID card above — iOS does the checking, before FinSight is even loaded. Nothing to set up in this card.'
+            : 'This device or browser has no Face ID, Touch ID or fingerprint FinSight can ask. On an iPhone, open FinSight in Safari over https and add it to your Home Screen.'}</span>
           : <>
             <div className="row" style={{marginBottom: 8}}>
               <span className={'chip ' + (lock.bioId ? 'grn' : '')}>{lock.bioId ? 'Face ID on' : 'Face ID off'}</span>
@@ -7761,9 +7870,10 @@ function App() {
   // the lock is asked for once per opening, not once per navigation
   const [unlocked, setUnlocked] = useState(false);
   // shown on every open unless the reader has ticked the box away
-  const [disclaimer, setDisclaimer] = useState(() => !state.prefs.disclaimerHide);
+  /* Accepted, and accepted at this version. Someone who agreed to an older wording is asked
+     again rather than assumed to have agreed to whatever it says now. */
+  const [disclaimer, setDisclaimer] = useState(() => (state.prefs.privacyAccepted || 0) < PRIVACY_VERSION);
   const openDisclaimer = useCallback(() => setDisclaimer(true), []);
-  useEffect(() => { if (disclaimer) disclaimerSeen = true; }, [disclaimer]);
 
   // persistence (debounced)
   const saveT = useRef(null as any);
@@ -7957,9 +8067,11 @@ function App() {
         </div>
       </div>)}
     </Modal>}
-    {!state.onboarded && <Onboarding />}
+    {!state.onboarded && !disclaimer && <Onboarding />}
     {/* after onboarding, not over it: two sheets at once on a first run is nobody's welcome */}
-    {disclaimer && state.onboarded && <Disclaimer onClose={() => setDisclaimer(false)} />}
+    {/* Ahead of onboarding rather than behind it. Agreeing to how your figures are handled
+        belongs before the screen that asks you for them, not after. */}
+    {disclaimer && <Disclaimer onClose={() => setDisclaimer(false)} />}
     {payslipDraft && <PayslipReview key={payslipDraft.id} />}
   </AppCtx.Provider>;
 }

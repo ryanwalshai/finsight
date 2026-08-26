@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FinSight — Support</title>
+<meta name="description" content="Help for FinSight: what it does, how to use it, and where to report a problem.">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<style>
+  :root{color-scheme:light dark;--bg:#F7F6F3;--fg:#14161A;--dim:#5C6068;--rule:#E2E0DA;--accent:#0F523C}
+  @media (prefers-color-scheme:dark){:root{--bg:#08090B;--fg:#EDEEF0;--dim:#8B9098;--rule:#22252B;--accent:#3FAE7A}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:40px 22px 90px;background:var(--bg);color:var(--fg);
+    font:16px/1.62 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-text-size-adjust:100%}
+  main{max-width:660px;margin:0 auto}
+  .mark{width:52px;height:52px;border-radius:16px;background:var(--accent);color:#fff;display:flex;
+    align-items:center;justify-content:center;font-size:26px;font-weight:700;margin-bottom:22px}
+  h1{font-size:31px;line-height:1.15;letter-spacing:-.025em;margin:0 0 6px}
+  .sub{color:var(--dim);margin:0 0 34px}
+  h2{font-size:19px;letter-spacing:-.015em;margin:34px 0 8px;padding-top:20px;border-top:1px solid var(--rule)}
+  h2:first-of-type{border-top:none;padding-top:0}
+  h3{font-size:16px;margin:20px 0 4px}
+  p{margin:0 0 13px}
+  ul{margin:0 0 13px;padding-left:20px}
+  li{margin-bottom:7px}
+  strong{font-weight:650}
+  .lead{font-size:18px;padding:16px 18px;border-radius:14px;background:color-mix(in srgb,var(--accent) 10%,transparent);
+    border:1px solid color-mix(in srgb,var(--accent) 28%,transparent)}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);color:var(--dim);font-size:14px}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+    background:color-mix(in srgb,var(--fg) 8%,transparent);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">F</div>
+  <h1>Support</h1>
+  <p class="sub">FinSight — personal finance dashboard for iPhone</p>
+
+  <p class="lead">FinSight has no account and no server, so there is nothing to sign into, nothing
+  to reset and nothing held anywhere for anyone to look up. Almost everything below you can settle
+  on the phone in your hand.</p>
+
+  <h2>Getting started</h2>
+  <p>Open the app and take the second step of setup: <strong>Load demo data</strong> fills every
+  screen with fifteen months of realistic figures so you can see what it does before typing
+  anything of your own. Loading it again later, from <strong>Settings → Backup &amp; data</strong>,
+  replaces whatever is there — so export a backup first if you have started for real.</p>
+  <p>Starting with your own figures takes about ten minutes the first time: add your accounts and
+  what each says today. After that it is a couple of minutes at the end of each month.</p>
+
+  <h2>The monthly round</h2>
+  <ul>
+    <li><strong>Update balances</strong> — type what each account says today.</li>
+    <li><strong>Add spending</strong> — what the month cost, and what you put by.</li>
+    <li><strong>Add payslip</strong> — drop the PDF in and it reads gross, tax, NI and pension off
+    it for you to check.</li>
+    <li><strong>Check your goals</strong> — the part that makes the rest worth doing.</li>
+  </ul>
+  <p>Long-pressing the app icon on the Home Screen jumps straight to the first three.</p>
+
+  <h2>Common questions</h2>
+
+  <h3>What does a figure on a card mean?</h3>
+  <p>Every card has an <strong>i</strong> in its corner. It says what that card is counting, which
+  months it used and what it left out. Nothing in FinSight is a number without a stated source.</p>
+
+  <h3>Can I connect my bank?</h3>
+  <p>No, deliberately. FinSight has no network access at all — it never contacts a bank, a broker
+  or any server, and it cannot move money. Everything in it is what you typed or what it read off a
+  payslip you gave it.</p>
+
+  <h3>Where is my data, and is it backed up?</h3>
+  <p>It is inside the app on your iPhone. It is included in an iCloud or encrypted local device
+  backup the way any other app's data is, and it goes when the app goes. The reliable copy is the
+  one you make: <strong>Settings → Backup &amp; data → Export backup</strong> hands a JSON file to
+  the share sheet, so it can go to Files, iCloud Drive or AirDrop. <strong>Restore from Files</strong>
+  brings it back, on this phone or a new one.</p>
+
+  <h3>I forgot my PIN.</h3>
+  <p>Nobody can reset it — there is no account behind it and no key held anywhere else. If you have
+  a backup file, delete the app, reinstall it and restore. If you do not, the data is not
+  recoverable. This is the trade for an app that keeps nothing on a server.</p>
+
+  <h3>Face ID is not working.</h3>
+  <p>The app lock lives at <strong>Settings → General → Lock with Face ID</strong>. iOS does the
+  checking; if it refuses too many times, iOS falls back to your device passcode, which always
+  works. If Face ID is off for FinSight in the iPhone's own Settings → Face ID &amp; Passcode →
+  Other Apps, the card in FinSight cannot turn it on.</p>
+
+  <h3>I lost data, or it looks wrong.</h3>
+  <p>Check <strong>Settings → Backup &amp; data → Storage</strong> first — it says how much data
+  the app is holding. If a figure is wrong rather than missing, the card's <strong>i</strong>
+  usually explains it: most surprises are a month with no balance recorded, which the app leaves
+  out of averages rather than counting as zero.</p>
+
+  <h3>Does it work offline?</h3>
+  <p>Entirely. The whole app is in the download; there is nothing to fetch. It behaves the same in
+  airplane mode as anywhere else.</p>
+
+  <h2>Reporting a problem</h2>
+  <p>Bugs, questions and requests go to the public issue tracker:
+  <a href="https://github.com/hvrkwd24ct-prog/finsight/issues">github.com/hvrkwd24ct-prog/finsight/issues</a>.
+  There is no email address on purpose — an inbox for an app that collects nothing would be the
+  only place your details ever ended up, and an answer in the open helps the next person with the
+  same question.</p>
+  <p>Useful in a report: the app version from <strong>Settings → General → Help and support</strong>,
+  your iOS version, and what you did just before it went wrong. <strong>Please leave your own
+  figures out of it</strong> — the tracker is public, and nothing about diagnosing a problem
+  requires knowing your balances.</p>
+
+  <h2>Not financial advice</h2>
+  <p>FinSight keeps your own figures and does arithmetic on them. The strategies it shows are
+  well-known rules of thumb written for a general audience, and the projections assume the future
+  resembles the recent past. None of it is regulated financial advice. If a decision matters, take
+  it to an adviser who is regulated to give advice on it.</p>
+
+  <h2>Privacy</h2>
+  <p>The full policy is at <a href="privacy.html">privacy.html</a>, and the same words are readable
+  inside the app at <strong>Settings → Backup &amp; data → Privacy</strong> — including on a plane.
+  The short version: FinSight collects nothing.</p>
+
+  <footer>
+    <p>FinSight is a personal project. It is not affiliated with any bank, broker or financial
+    institution, and none of the providers named inside the app are affiliated with it.</p>
+  </footer>
+</main>
+</body>
+</html>

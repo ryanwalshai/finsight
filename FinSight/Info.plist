@@ -58,10 +58,11 @@
 	</dict>
 
 	<!--
-	  Export compliance, answered once here rather than at every upload. FinSight uses SHA-256 to
-	  hash the app-lock PIN and WebAuthn for Face ID — both are standard cryptography provided by
-	  the operating system, which is exempt. Declaring it false stops App Store Connect stopping
-	  to ask, and stops anyone answering it wrong in a hurry.
+	  Export compliance, answered once here rather than at every upload. The only cryptography in
+	  FinSight is SHA-256, used to hash the app-lock PIN, and it comes from the operating system's
+	  own WebCrypto — Face ID goes through LocalAuthentication, which is a check rather than a
+	  cipher. Standard OS-provided cryptography is exempt. Declaring it false stops App Store
+	  Connect stopping to ask, and stops anyone answering it wrong in a hurry.
 	-->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

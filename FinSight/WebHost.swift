@@ -72,6 +72,45 @@ final class WebHostController: UIViewController {
             return
         }
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+
+        // Dynamic Type. A web view ignores the system text size, which is how a great many
+        // wrapped apps end up unusable for anyone who has turned it up — and it is one of the
+        // things the App Store now treats as a quality failure rather than a preference.
+        _ = registerForTraitChanges([UITraitPreferredContentSizeCategory.self],
+                                    action: #selector(applyTextScale))
+        applyTextScale()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        applyTextScale()          // the cap depends on the width, so it is recomputed on rotation
+    }
+
+    /// The system text size, translated into page zoom — bounded so the dashboard is never asked
+    /// to lay itself out narrower than the 320pt it is designed and tested down to. Enlarging past
+    /// that point does not help somebody read: it produces a column of overlapping figures, which
+    /// is the failure mode this is meant to avoid rather than cause.
+    @objc private func applyTextScale() {
+        let wanted: CGFloat
+        switch traitCollection.preferredContentSizeCategory {
+        case .extraSmall:                             wanted = 0.88
+        case .small:                                  wanted = 0.92
+        case .medium:                                 wanted = 0.96
+        case .large:                                  wanted = 1.00     // the default
+        case .extraLarge:                             wanted = 1.08
+        case .extraExtraLarge:                        wanted = 1.16
+        case .extraExtraExtraLarge:                   wanted = 1.24
+        case .accessibilityMedium:                    wanted = 1.34
+        case .accessibilityLarge:                     wanted = 1.44
+        case .accessibilityExtraLarge,
+             .accessibilityExtraExtraLarge,
+             .accessibilityExtraExtraExtraLarge:      wanted = 1.55
+        default:                                      wanted = 1.00
+        }
+        let width = view.bounds.width
+        let cap = width > 0 ? max(1.0, width / 320) : 1.0
+        let zoom = min(wanted, cap)
+        if abs(webView.pageZoom - zoom) > 0.001 { webView.pageZoom = zoom }
     }
 
     deinit {
