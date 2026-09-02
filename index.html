@@ -6370,6 +6370,8 @@ function RecurringView() {
   const active = list.filter((r: any) => r.active !== false);
   const mEq = (r: any) => r.freq === 'yearly' ? r.amount / 12 : r.amount;
   const totalM = sum(active.map(mEq));
+  const monthlyOnly = sum(active.filter((r: any) => r.freq !== 'yearly').map((r: any) => r.amount));
+  const yearlyAvg = totalM - monthlyOnly;
   const upcoming = active.map((r: any) => ({r, due: nextDueOf(r)})).sort((a: any, b: any) => a.due < b.due ? -1 : 1);
   const due30 = sum(upcoming.filter((x: any) => (new Date(x.due + 'T12:00').getTime() - Date.now()) / 86400000 <= 30).map((x: any) => x.r.amount));
   const save = () => {
@@ -6431,8 +6433,8 @@ function RecurringView() {
       <Blk id="tiles" name="The four figures" hint="Monthly, yearly, next 30 days and share of income">
     {/* four figures, one apiece, rather than four cards the width of the screen */}
     <div className="btiles">
-      <Tile icon="refresh" color={catById('subscriptions').color} k="Every month" v={fmt(totalM)}
-        sub={`${active.length} payment${active.length === 1 ? '' : 's'}, yearly ones averaged in`} />
+      <Tile icon="refresh" color={catById('subscriptions').color} k="Every month" v={fmt(monthlyOnly)}
+        sub={yearlyAvg > 0 ? `+${fmt(yearlyAvg)} from yearly ones averaged in` : `${active.length} payment${active.length === 1 ? '' : 's'}`} />
       <Tile icon="calendar" color={GROUP_COLORS.isa} k="A year of it" v={fmt(totalM * 12)}
         sub="what these come to over twelve months" />
       <Tile icon="clock" color={GROUP_COLORS.cash} k="Next 30 days" v={fmt(due30)} vColor={due30 > 0 ? 'var(--amber)' : undefined}
