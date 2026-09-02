@@ -1027,6 +1027,14 @@ svg,img{max-width:100%}
   .t-income :is(th,td):first-child{width:34%}
   .t-income :is(th,td):nth-child(2){width:32%}
   .t-income :is(th,td):nth-child(3){width:34%}
+  /* With /month gone, three icon buttons were splitting whatever the equal-column split left
+     over — as little as 26px apiece, well under the pencil and trash they were meant to show.
+     Give that last column enough room to hold them at their real size, taking it from Amount
+     and Next due, which never needed a quarter of the table for "£360.00" and "5 Sep 26". */
+  .t-recur :is(th,td):last-child{width:104px}
+  .t-recur td:last-child .btn{padding:0 7px;flex:none}
+  .t-recur :is(th,td):nth-child(2){width:76px}
+  .t-recur :is(th,td):nth-child(4){width:70px}
 }
 
 /* ---------- Home: greeting, hero, quick actions, carousel ---------- */
