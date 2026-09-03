@@ -2405,6 +2405,13 @@ function billsDueIn(state: any, key: string) {
     .map((r: any) => r.amount || 0));
 }
 
+/* A month typed in by hand holds a total, what came in, what was put by, and — now that spending
+   can be split up — a figure per category. Every place that writes one deletes it again when
+   there is nothing left in it, so what counts as "nothing" is decided once here rather than
+   spelled out in four places that can drift apart and start stranding each other's figures. */
+const catTotalOf = (e: any) => sum(Object.values((e || {}).byCat || {}).map((v: any) => +v || 0));
+const entryHasFigures = (e: any) => !!e && (e.total > 0 || e.income > 0 || e.save > 0 || e.invest > 0 || catTotalOf(e) > 0);
+
 function nextDueOf(r: any) {
   const t = new Date(); const day = clamp(r.dueDay || 1, 1, 28);
   if (r.freq === 'yearly') {
@@ -3374,7 +3381,7 @@ function computeMetrics(state: any) {
   /* Months whose spending was typed in rather than imported. A month is one or the other:
      adding a statement's rows to a figure you already totalled by hand would double it. */
   const manual = state.monthlySpend || {};
-  const manualMonths = new Set(Object.keys(manual).filter(k => manual[k] && manual[k].total > 0));
+  const manualMonths = new Set(Object.keys(manual).filter(k => manual[k] && (manual[k].total > 0 || catTotalOf(manual[k]) > 0)));
 
   for (const t of txs) {
     const key = mk(t.date); const pm = perMonth[key]; if (!pm) continue;
@@ -3400,11 +3407,36 @@ function computeMetrics(state: any) {
   for (const key of months) {
     if (!manualMonths.has(key)) continue;
     const m = manual[key]; const pm = perMonth[key];
-    pm.day = m.total;
+    const cats = m.byCat || {};
+    const catTotal = catTotalOf(m);
+    /* A breakdown divides the figure you typed rather than adding to it, so explaining a month
+       never makes it dearer. Where the parts come to more than the whole — a total left behind
+       after the categories were filled in — the parts win, being the more considered answer. */
+    pm.day = Math.max(m.total || 0, catTotal);
     pm.rec = billsDueIn(state, key);
     pm.spend = pm.day + pm.rec;
-    pm.discretionary = pm.day; pm.essential = pm.rec;
+    let essCat = 0, discCat = 0;
+    for (const id of Object.keys(cats)) {
+      const v = +cats[id] || 0; if (!(v > 0)) continue;
+      pm.byCat[id] = (pm.byCat[id] || 0) + v;
+      if (catById(id).essential) essCat += v; else discCat += v;
+    }
+    const rest = Math.max(0, pm.day - catTotal);
+    if (rest > 0) pm.byCat.other = (pm.byCat.other || 0) + rest;
+    /* Bills stay whole on the essential side. They are what you have committed to, which is the
+       line this split has always drawn; re-filing a subscription as a want on the strength of
+       its category would move a figure nobody asked to have moved. */
+    pm.essential = pm.rec + essCat;
+    pm.discretionary = rest + discCat;
     pm.manualSpend = true;
+  }
+  /* Whether a month's needs-and-wants split was actually drawn from categories, rather than the
+     bills standing in for them. Money strategies says which one it used, and claiming
+     "categories" over a month where none were entered is the sort of small lie that costs a
+     screen its credibility. */
+  for (const key of months) {
+    const pm = perMonth[key];
+    pm.catSplit = Object.keys(pm.byCat).some((id: string) => id !== 'other' && pm.byCat[id] > 0);
   }
   // payslip fallback: months with no transaction income use recorded net pay
   // every payslip dated in the month, not the newest one, weekly and four-weekly pay means
@@ -4828,7 +4860,7 @@ function SpendingView() {
       s.monthlySpend = s.monthlySpend || {};
       const e = s.monthlySpend[k] = {...(s.monthlySpend[k] || {})};
       if (n == null) delete e.total; else e.total = n;
-      if (!(e.total > 0) && !(e.income > 0) && !(e.save > 0) && !(e.invest > 0)) delete s.monthlySpend[k];
+      if (!entryHasFigures(e)) delete s.monthlySpend[k];
     });
     setEdits((x: any) => { const y = {...x}; delete y[k]; return y; });
   };
@@ -5503,7 +5535,7 @@ function TargetsView() {
     if (v.trim() === '' || isNaN(parseFloat(v))) delete s.monthlySpend[eMonth][field];
     else s.monthlySpend[eMonth][field] = Math.max(0, parseFloat(v));
     const e = s.monthlySpend[eMonth];
-    if (!(e.total > 0) && !(e.income > 0) && !(e.save > 0) && !(e.invest > 0)) delete s.monthlySpend[eMonth];
+    if (!entryHasFigures(e)) delete s.monthlySpend[eMonth];
   });
   const eData = M.perMonth[eMonth] || {save: 0, invest: 0};
   const dayFrac = clamp(+todayISO().slice(8) / +monthEndISO(cm).slice(8), 0.05, 1);
@@ -6763,7 +6795,7 @@ function IncomeView() {
     employer: latest ? latest.employer : '', taxCode: latest ? latest.taxCode : ''});
   const delTyped = (k: string) => { if (!confirm(`Remove the ${fmt((state.monthlySpend[k] || {}).income || 0)} you typed in for ${mLabelLong(k)}?`)) return; update((s: any) => {
     const e = s.monthlySpend[k]; if (!e) return; delete e.income;
-    if (!(e.total > 0) && !(e.income > 0) && !(e.save > 0) && !(e.invest > 0)) delete s.monthlySpend[k];
+    if (!entryHasFigures(e)) delete s.monthlySpend[k];
   }); };
   blocks.bymonth = <Card title="Income by month" icon="calendar" pad0
       info="Every month totalled, rather than payslip by payslip. Paid weekly or four-weekly, a single payslip says very little about a month. This is the figure the rest of the app uses for money in. Tap a month to see what it is made of: its payslips, or a figure typed in against it, each one editable and removable, with both ways of adding more underneath.">
@@ -7272,10 +7304,14 @@ function StrategiesView() {
   const wants = byCats ? disc : day;
   /* Two ways of drawing the same line, depending on whether there are categories to draw it
      with. Named in plain terms either way: "essential and discretionary categories" is what
-     the code calls them, not what the reader calls them. */
-  const basis = byCats
+     the code calls them, not what the reader calls them. Which one is in use is a question about
+     the months being averaged rather than about `ess` being above zero: a month with bills and no
+     breakdown has an essential figure too, and calling that a category split would be untrue. */
+  const catBasisMonths = basisMode === 'avg3' ? M.done.slice(-3) : [M.baseMonth];
+  const hasCatSplit = catBasisMonths.some((k: string) => (M.perMonth[k] || {}).catSplit);
+  const basis = hasCatSplit
     ? 'the categories your spending falls into, the essential ones counting as needs and the rest as wants'
-    : 'your recurring payments and your monthly spending, since no category split has been entered';
+    : 'your bills as needs and the rest of your spending as wants, since no category split has been entered';
   const pct = (v: number) => inc > 0 ? v / inc : 0;
   const [ret, setRet] = useState(7);
 
@@ -7539,14 +7575,33 @@ function SpendEntryView() {
     s.monthlySpend = s.monthlySpend || {};
     s.monthlySpend[month] = {...(s.monthlySpend[month] || {}), ...patch};
     const e = s.monthlySpend[month];
-    if (!(e.total > 0) && !(e.income > 0) && !(e.save > 0) && !(e.invest > 0)) delete s.monthlySpend[month];
+    if (!entryHasFigures(e)) delete s.monthlySpend[month];
+  });
+  /* One category at a time, so a half-filled breakdown is an ordinary state rather than
+     something to be validated away — most months only two or three of these are worth
+     separating out. An empty box is the category going unused, which is not the same as a zero
+     and is not stored as one. */
+  const setCat = (id: string, v: string) => update((s: any) => {
+    s.monthlySpend = s.monthlySpend || {};
+    const e = s.monthlySpend[month] = {...(s.monthlySpend[month] || {})};
+    const bc = e.byCat = {...(e.byCat || {})};
+    const n = v.trim() === '' ? null : Math.max(0, parseFloat(v) || 0);
+    if (n == null || !(n > 0)) delete bc[id]; else bc[id] = n;
+    if (!Object.keys(bc).length) delete e.byCat;
+    if (!entryHasFigures(e)) delete s.monthlySpend[month];
   });
   const num = (v: any) => v == null || v === '' ? '' : String(v);
   const money = (v: string) => v === '' ? undefined : Math.max(0, parseFloat(v) || 0);
   const months = M.months;
-  const filled = Object.keys(state.monthlySpend || {}).filter(k => { const e = state.monthlySpend[k] || {}; return e.total > 0 || e.income > 0 || e.save > 0 || e.invest > 0; });
+  const filled = Object.keys(state.monthlySpend || {}).filter(k => entryHasFigures(state.monthlySpend[k]));
   const hasTx = state.transactions.some((t: any) => mk(t.date) === month && isSpendTx(t));
-  const total = (entry.total || 0) + bills;
+  const catTotal = catTotalOf(entry);
+  /* What the month cost apart from bills: what was typed, or what the categories come to when
+     they come to more. Everything on this screen totals from here rather than from entry.total,
+     so the sum at the foot of the card is the figure the metrics will actually use. */
+  const typedDay = Math.max(entry.total || 0, catTotal);
+  const essTyped = sum(Object.keys(entry.byCat || {}).filter((id: string) => catById(id).essential).map((id: string) => +entry.byCat[id] || 0));
+  const total = typedDay + bills;
   return <div className="content-inner stack enter">
     <SectionHead title="Add spending" sub="What a month cost, what came in, and what you put by"
       right={<button className="btn ghost" onClick={() => navigate('recurring')}><Icon name="refresh" size={13} /> Your bills</button>} />
@@ -7582,7 +7637,7 @@ function SpendEntryView() {
             onChange={e => set({invest: money(e.target.value)})} /></Field>
       </div>
       <div className="sum-out">
-        <div><span>You typed</span><b className="num">{fmt(entry.total || 0)}</b></div>
+        <div><span>You typed</span><b className="num">{fmt(typedDay)}</b></div>
         <span className="so-op">+</span>
         <div><span>Your bills</span><b className="num">{fmt(bills)}</b></div>
         <span className="so-op">=</span>
@@ -7592,6 +7647,31 @@ function SpendEntryView() {
         ? <>{fmt(bills)} of bills fall due in {mLabelLong(month)}, from the {recurringList(state).filter((r: any) => r.active !== false).length} payment{recurringList(state).filter((r: any) => r.active !== false).length === 1 ? '' : 's'} you track. A once-a-year bill counts in the month it actually goes out, so some months are dearer than others. <button className="lnk" onClick={() => navigate('recurring')}>Change them</button></>
         : <>You have no regular payments tracked yet, so nothing is being added. <button className="lnk" onClick={() => navigate('recurring')}>Add your bills</button> and they will be counted for you from then on.</>}</div>
       {hasTx && <div className="rec-card p2" style={{marginTop: 12}}><span className="small">{mLabelLong(month)} also has imported transactions. A figure typed here <b style={{color: 'var(--text)'}}>replaces</b> them in every total, so the same spending is never counted twice. The transactions stay in your records.</span></div>}
+    </Card>
+</Blk>
+      <Blk id="cats" name="What it went on" hint="Splitting the month's spending across categories">
+    {/* Every category is offered, and filling in two of them is a perfectly good answer. The
+        month is not required to add up here: whatever is left unsplit is counted exactly as it
+        is counted today, so a partial breakdown is strictly better than none and nobody has to
+        account for the last nine pounds of a Tuesday. */}
+    <Card title="What it went on" icon="layers"
+      info="Optional, and partial is fine. Split what you typed above across the categories it went on; anything you leave out stays uncategorised and counts exactly as it does now. What it changes is Money strategies: spending in an essential category — groceries, transport, housing, health, insurance — counts towards needs, and the rest towards wants. Until something is split up, your bills stand in for needs and everything else is treated as wants.">
+      <div className="map-grid tight">
+        {SPEND_CATS.map((c: any) => <Field key={c.id} label={c.label}>
+          <input className="input num" type="number" step="0.01" inputMode="decimal" placeholder="—"
+            value={num((entry.byCat || {})[c.id])} onChange={e => setCat(c.id, e.target.value)} /></Field>)}
+      </div>
+      <div className="sum-out" style={{marginTop: 4}}>
+        <div><span>Split up</span><b className="num">{fmt(catTotal)}</b></div>
+        <span className="so-op">+</span>
+        <div><span>Not split</span><b className="num">{fmt(Math.max(0, typedDay - catTotal))}</b></div>
+        <span className="so-op">=</span>
+        <div><span>{mLabel(month)} apart from bills</span><b className="num" style={{color: 'var(--text)'}}>{fmt(typedDay)}</b></div>
+      </div>
+      {catTotal > (entry.total || 0) && <div className="rec-card p2" style={{marginTop: 12}}><span className="small">
+        These categories come to {fmt(catTotal)}, which is more than the {fmt(entry.total || 0)} typed above. The categories are the figure being used, since they are the more considered one — raise the total if that is not what you meant.</span></div>}
+      {catTotal > 0 && <div className="small dim" style={{marginTop: 10}}>
+        Of what you have split up, <b style={{color: 'var(--text)'}}>{fmt(essTyped)}</b> counts as needs and <b style={{color: 'var(--text)'}}>{fmt(catTotal - essTyped)}</b> as wants{bills > 0 ? <>, with your {fmt(bills)} of bills counting as needs on top</> : null}. <button className="lnk" onClick={() => navigate('rules')}>See it in Money strategies</button></div>}
     </Card>
 </Blk>
       <Blk id="filled" name="Months you have entered" hint="The list of months already recorded">

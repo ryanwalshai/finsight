@@ -62,6 +62,14 @@ payment does not cover the interest, money in `Double` rather than `Decimal`. Wh
 the web app disagree about a figure, this app is wrong. Money is `Double` for exactly that reason:
 `Decimal` would be more correct in the abstract and would make the two disagree in the last penny.
 
+**When the Spending screen gets built, honour `byCat`.** A typed-in month in `monthlySpend` may
+carry `byCat` — a partial breakdown of that month's spending across category ids. It divides the
+typed total rather than adding to it, anything left unsplit is uncategorised, and where the parts
+come to more than the typed total the parts win. It matters because the needs/wants split reads
+it: spending in a category with `essential: true` counts towards needs. `Categories` already
+carries those flags, and `monthlySpend` round-trips as raw JSON today, so nothing is lost in the
+meantime.
+
 **Nothing gets dropped on the way through.** `FinState` and every type under it keep the keys they
 do not recognise and write them back out on save, so a backup that has been through this app is
 the backup that went in. The collections without native screens yet — accounts, transactions,
