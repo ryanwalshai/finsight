@@ -1037,6 +1037,49 @@ svg,img{max-width:100%}
   .t-recur :is(th,td):nth-child(4){width:70px}
 }
 
+/* ---------- Net worth, month by month ----------
+   Three figures a row: the month, what you were worth at the end of it, and what that month
+   moved you by. Deliberately not a <table>: a fixed table layout divides the width evenly and
+   then clips the money to fit, which on a phone is how "£62,140.00" becomes "£62,1…". A row
+   that lays itself out gives the figures the room they need and drops the least important
+   thing — the bar — when there is none to give. */
+.nwg-sum{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+.nwg-sum>div{display:flex;flex-direction:column;gap:1px}
+.nwg-sum span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.nwg-sum b{font-size:19px;font-weight:650}
+.nwg-head,.nwg-row{display:flex;align-items:center;gap:8px}
+/* The headings are set tight rather than wide: "NET WORTH" at the app's usual heading tracking
+   is wider than the column it labels, and a heading that overflows its own column sits on the
+   one beside it the moment the screen narrows. */
+.nwg-head{padding:14px 2px 7px;border-bottom:1px solid var(--border2);font-family:var(--font-display);
+  font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:700}
+.nwg-row{padding:9px 2px;border-bottom:1px solid var(--border)}
+.nwg-row:last-of-type{border-bottom:none}
+.nwg-m{width:56px;flex:none;font-size:13px;color:var(--muted);font-weight:500}
+.nwg-now{display:block;font-style:normal;font-size:9.5px;letter-spacing:0;color:var(--dim);text-transform:none}
+/* Said in a word rather than shown as a pin. A pin explains itself through a hover tooltip,
+   which on the phone this is built for is nothing at all. */
+.nwg-corr{color:var(--amber)}
+/* The figure is what the card is for, so it gets whatever the fixed columns do not take. Six
+   figures and a penny is the width to survive: somebody with £129,552.42 should not be the
+   person who discovers the column was sized for £29,552.42. */
+.nwg-v{flex:1;min-width:0;text-align:right;font-size:14.5px;font-weight:600;white-space:nowrap}
+.nwg-d{width:88px;flex:none;text-align:right;font-size:13.5px;font-weight:550;white-space:nowrap}
+/* the bar carries magnitude only; the sign is carried by the figure beside it and by colour,
+   so it still reads with the colour taken away */
+.nwg-bar{width:36px;flex:none;height:6px;border-radius:999px;background:var(--surface3);overflow:hidden}
+.nwg-bar i{display:block;height:100%;border-radius:999px}
+/* On a narrow phone the bar is the first thing to go: it is the only part of the row that
+   repeats something the figure beside it already says. */
+@media(max-width:380px){
+  .nwg-bar{display:none}
+  .nwg-m{width:48px}
+  /* the room the bar gave up goes to the change, which is the column that has to hold a sign,
+     a currency mark and six figures on the worst month somebody ever has */
+  .nwg-d{width:88px;font-size:12px}
+  .nwg-v{font-size:13.5px}
+}
+
 /* ---------- Home: greeting, hero, quick actions, carousel ---------- */
 .greet-row{display:flex;align-items:center;gap:12px}
 /* the date, not a greeting: sized like a heading rather than a headline */
@@ -4345,6 +4388,7 @@ function Reel({slides}: any) {
    has nothing to say still hides itself; this is about the ones that do. */
 const HOME_BLOCKS: [string, string, string][] = [
   ['nw', 'Net worth', 'Your total across every account, and how it moved this month'],
+  ['nwgrowth', 'How it has grown', 'The net worth line month by month, with what each month added'],
   /* Four screenfuls, side by side instead of end to end: your accounts, the month, the dial
      and the tips. They are one block here because they are one gesture. */
   ['reel', 'The reel', 'Accounts, money in vs out, where you are heading and the tips, swiped'],
@@ -4456,6 +4500,7 @@ function HomeEditor({open, onOpen, onClose}: any) {
 function OverviewView() {
   const {state, M, navigate, loadDemo, update, widgetPicker: editing, setWidgetPicker: setEditing} = useApp() as any;
   const [fanned, setFanned] = useState(false);
+  const [nwAll, setNwAll] = useState(false);
   const [reordering, setReordering] = useState(false);
 
   /* Which month Home's month-shaped cards read. Declared up here with the other hooks: the
@@ -4507,6 +4552,25 @@ function OverviewView() {
   const nwSpark = M.nwSeries.map((r: any) => r.total);
   const nwPrev = nwSpark.length > 1 ? nwSpark[nwSpark.length - 2] : 0;
   const nwDelta = M.netWorth - nwPrev;
+  /* Months before the first balance was ever recorded sit at zero because there was no data
+     then, not because you had nothing. Charting them turns an account being added into a
+     month's growth, which on a short history is most of the slope. */
+  const nwFirst = M.nwSeries.findIndex((r: any) => Math.abs(r.total) > 0.005);
+  const nwRows = nwFirst > 0 ? M.nwSeries.slice(nwFirst) : M.nwSeries;
+  const nwCut = nwFirst > 0 ? nwFirst : 0;
+  const nwMarkers = M.corrMarkers.map((m: any) => ({...m, idx: m.idx - nwCut})).filter((m: any) => m.idx >= 0);
+  const corrByKey: any = {};
+  for (const m of M.corrMarkers) { const k = M.nwMonths[m.idx]; if (k) corrByKey[k] = m.label; }
+  const nwGrowth = nwRows.map((r: any, i: number) => ({
+    key: r.key, total: r.total,
+    // the first month has nothing behind it to have moved from, which is not the same as a flat month
+    delta: i > 0 ? r.total - nwRows[i - 1].total : null,
+    corr: corrByKey[r.key],
+  }));
+  const nwGrowthDesc = [...nwGrowth].reverse();
+  const nwMaxDelta = Math.max(1, ...nwGrowth.map((r: any) => Math.abs(r.delta || 0)));
+  const nwAdded = nwRows.length > 1 ? nwRows[nwRows.length - 1].total - nwRows[0].total : 0;
+  const nwPerMonth = nwRows.length > 1 ? nwAdded / (nwRows.length - 1) : 0;
   const m6 = M.months.slice(-6);
   const isNow = month === cm;
   const surplus = cur.income - cur.spend;
@@ -4749,6 +4813,39 @@ function OverviewView() {
       </Card>
     </div>
   </>;
+  blocks.nwgrowth = <Card title="How it has grown" icon="layers"
+    info="What you were worth at the end of every month, and what each month moved you by. The line is the total and the list under it is the same figures written out, because a shape tells you the direction and only a number tells you how much. The month you are standing in is valued at today rather than at its end, so its figure is a part-month and is marked as such. Months before your first recorded balance are left out: they sit at zero because there was no data then, not because you had nothing."
+    right={<button className="btn sm ghost" onClick={() => navigate('accounts')}><Icon name="layers" size={11} /> Accounts</button>}>
+    {nwGrowth.length < 2
+      ? <Empty icon="chart" title="One month so far" text="Net worth is charted from the end of each month, so there is nothing yet to measure a change against. Update your balances next month and the line starts." />
+      : <>
+      <div className="nwg-sum">
+        <div><span>Added over {nwGrowth.length - 1} month{nwGrowth.length - 1 === 1 ? '' : 's'}</span>
+          <b className="num" style={{color: nwAdded >= 0 ? 'var(--green)' : 'var(--red)'}}>{fmtS(nwAdded)}</b></div>
+        <div><span>Average a month</span><b className="num">{fmtS(nwPerMonth)}</b></div>
+      </div>
+      <LineArea data={nwGrowth.map((r: any) => r.total)} labels={nwGrowth.map((r: any) => mLabel(r.key))}
+        colorRaw="#3ECFAA" height={250} markers={nwMarkers} label1="Net worth" fmtV={(v: number) => fmt(v)} />
+      {/* The same figures as a list, newest first. The chart is for the shape of it; this is
+          for the question the chart cannot answer, which is how much. */}
+      <div className="nwg-head">
+        <span className="nwg-m">Month</span><span className="nwg-v">Net worth</span>
+        <span className="nwg-d">Added</span><span className="nwg-bar" style={{background: 'transparent'}} />
+      </div>
+      {(nwAll ? nwGrowthDesc : nwGrowthDesc.slice(0, 12)).map((r: any) => <div className="nwg-row" key={r.key}>
+        <span className="nwg-m">{mLabel(r.key)}
+          {r.key === cm && <i className="nwg-now">so far</i>}
+          {r.corr && <i className="nwg-now nwg-corr" title={r.corr}>corrected</i>}</span>
+        <span className="nwg-v num">{fmt(r.total)}</span>
+        <span className="nwg-d num" style={{color: r.delta == null ? 'var(--dim)' : r.delta >= 0 ? 'var(--green)' : 'var(--red)'}}>
+          {r.delta == null ? 'start' : fmtS(r.delta)}</span>
+        <span className="nwg-bar">{r.delta != null && <i style={{width: Math.max(3, Math.abs(r.delta) / nwMaxDelta * 100) + '%',
+          background: r.delta >= 0 ? 'var(--green)' : 'var(--red)'}} />}</span>
+      </div>)}
+      {nwGrowthDesc.length > 12 && <button className="btn sm ghost" style={{marginTop: 12}} onClick={() => setNwAll(!nwAll)}>
+        {nwAll ? 'Show fewer' : 'All ' + nwGrowthDesc.length + ' months'}</button>}
+    </>}
+  </Card>;
   blocks.attention = <>
     {/* what needs a look? */}
     {attention && <Card title="Worth a look" icon="alert" info="Things FinSight noticed that may need a moment: a regular payment that has gone up, a balance nobody has updated in a while, or data that looks off. It only appears when there is something to say.">
