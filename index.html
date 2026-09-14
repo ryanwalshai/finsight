@@ -1080,6 +1080,12 @@ svg,img{max-width:100%}
   .nwg-v{font-size:13.5px}
 }
 
+/* The bills list borrows the net-worth row wholesale and adds one thing: a line naming
+   whatever made the month dear. It wraps onto its own line rather than being squeezed into a
+   fourth column, because a bill is called whatever somebody's insurer decided to call it. */
+.bills-row{flex-wrap:wrap}
+.bills-why{flex-basis:100%;font-size:11.5px;color:var(--amber);padding-left:2px;margin-top:3px}
+
 /* ---------- Home: greeting, hero, quick actions, carousel ---------- */
 .greet-row{display:flex;align-items:center;gap:12px}
 /* the date, not a greeting: sized like a heading rather than a headline */
@@ -3120,6 +3126,69 @@ function DualBars({months, a, b, bSplit, la = 'Income', lb = 'Spending', lbSplit
         </g>;
       })}
       {net && <path d={months.map((m: string, i: number) => (i ? 'L' : 'M') + (6 + i * bw + bw / 2) + ' ' + Y(Math.max(0, a[i] - b[i]))).join(' ')} fill="none" stroke="#88DCC8" strokeWidth="1.6" strokeDasharray="4 3" opacity="0.7" />}
+    </svg>
+    {tipNode}
+  </div>;
+}
+
+/** One bar a month, one series, with a dashed line at the figure that goes out every month
+ *  whatever happens. Anything standing above that line is a yearly bill landing, which is the
+ *  question the chart exists to answer: which month is about to be dear, and by how much.
+ *
+ *  Bars rather than a line. A line between months implies the figure travelled through the
+ *  values in between, and a bill does not: it is twelve separate amounts, compared. */
+function MonthBars({months, values, baseline, names, color = '#A98FD9', height = 230, fmtV = (v: number) => fmt(v)}: any) {
+  const [setTip, tipNode] = useTip() as any;
+  const [hi, setHi] = useState(-1);
+  const [wrapRef, cw] = useMeasure();
+  const W = Math.max(260, cw || 350), H = height, PB = 26, PT = 12;
+  if (!months.length) return <Empty icon="chart" title="Nothing tracked yet" text="Add a bill and the months it falls in appear here." />;
+  const mx = Math.max(...values, baseline || 0, 1) * 1.12;
+  const bw = (W - 12) / months.length;
+  const Y = (v: number) => PT + (H - PT - PB) * (1 - clamp(v, 0, mx) / mx);
+  /* Touch scrubs the same bars a mouse hovers, and touch-action:pan-y leaves the page free to
+     scroll vertically while a sideways drag belongs to the chart. */
+  const onMove = (e: any) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const cx = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
+    const i = clamp(Math.floor((cx - r.left) / r.width * months.length), 0, months.length - 1);
+    setHi(i);
+    const over = baseline != null ? values[i] - baseline : 0;
+    const why = names && names[i] ? names[i] : [];
+    setTip({x: (6 + i * bw + bw / 2) / W * r.width, y: Y(values[i]) / H * r.height, w: r.width, content: <div>
+      <div className="t-title">{mLabelLong(months[i])}</div>
+      <div className="t-row"><span className="l-dot" style={{background: color}} /><b>{fmtV(values[i])}</b></div>
+      {over > 0.005 && <div className="t-row warn" style={{marginTop: 3}}>{fmtS(over)} on a usual month</div>}
+      {why.length > 0 && <div className="t-row" style={{marginTop: 2}}><span className="muted">{why.join(' · ')}</span></div>}
+    </div>});
+  };
+  return <div ref={wrapRef} className="chart-wrap" onMouseLeave={() => { setTip(null); setHi(-1); }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{display: 'block', touchAction: 'pan-y'}}
+      onMouseMove={onMove} onTouchStart={onMove} onTouchMove={onMove}>
+      {[0.25, 0.5, 0.75].map((f, i) => <line key={i} x1="4" x2={W - 4} y1={PT + (H - PT - PB) * f} y2={PT + (H - PT - PB) * f} stroke="var(--border2)" strokeDasharray="3 5" />)}
+      {months.map((m: string, i: number) => {
+        const x = 6 + i * bw, w = clamp(bw * 0.56, 6, 34), y = Y(values[i]);
+        const h = Math.max(0, H - PB - y);
+        /* The radius has to yield to the height as well as the width. A 6px round on a bar six
+           pixels tall is a lozenge, and a row of them reads as scattered dots rather than as
+           twelve small amounts — which is exactly the month somebody is trying to see. */
+        return <rect key={m} className="bar-in" style={{animationDelay: (0.03 * i) + 's'}} opacity={hi === -1 || hi === i ? 1 : 0.45}
+          x={x + bw / 2 - w / 2} y={y} width={w} height={h} rx={Math.min(6, w / 2, h / 2)} fill={color} />;
+      })}
+      {/* A threshold, which is the one thing a dashed rule across a chart legitimately means */}
+      {baseline > 0 && <line x1="4" x2={W - 4} y1={Y(baseline)} y2={Y(baseline)} stroke="var(--dim)" strokeDasharray="5 4" />}
+      {/* The end labels are anchored rather than nudged. Sliding one inward to stop it being
+          clipped walks it towards its neighbour and, worse, away from the bar it names; turning
+          it to start or end instead keeps it over its own bar and inside the box. */}
+      {months.map((m: string, i: number) => {
+        /* 58 rather than the 46 the other charts thin at. A month name is about 44px wide, so a
+           46px step leaves two of them a couple of pixels apart and the row reads as one long
+           string — and the first, anchored to the left edge, eats even that. */
+        if (!(bw > 58 || i % Math.ceil(58 / bw) === 0)) return null;
+        const cx = 6 + i * bw + bw / 2, atStart = cx < 26, atEnd = cx > W - 26;
+        return <text key={'l' + i} x={atStart ? 4 : atEnd ? W - 4 : cx} y={H - 7} fontSize="12.5" fill="var(--muted)"
+          textAnchor={atStart ? 'start' : atEnd ? 'end' : 'middle'} fontFamily="Inter" fontWeight="500">{mLabel(m)}</text>;
+      })}
     </svg>
     {tipNode}
   </div>;
@@ -6509,6 +6578,15 @@ function RecurringView() {
   const totalM = sum(active.map(mEq));
   const monthlyOnly = sum(active.filter((r: any) => r.freq !== 'yearly').map((r: any) => r.amount));
   const yearlyAvg = totalM - monthlyOnly;
+  /* What the bills come to in each of the next twelve months, forward rather than back: a bill
+     is a commitment already made, so the question worth answering is which month is about to be
+     dear, not which one was. */
+  const billMonths = Array.from({length: 12}, (_, i) => addMonthsKey(curMonth(), i));
+  const billSeries = billMonths.map((k: string) => billsDueIn(state, k));
+  const yearlyIn = (k: string) => active.filter((r: any) => r.freq === 'yearly' && (r.dueMonth || 1) === +k.slice(5, 7));
+  const billsYear = sum(billSeries);
+  const billMax = Math.max(1, ...billSeries);
+  const dearest = billSeries.indexOf(Math.max(...billSeries));
   const upcoming = active.map((r: any) => ({r, due: nextDueOf(r)})).sort((a: any, b: any) => a.due < b.due ? -1 : 1);
   const due30 = sum(upcoming.filter((x: any) => (new Date(x.due + 'T12:00').getTime() - Date.now()) / 86400000 <= 30).map((x: any) => x.r.amount));
   const save = () => {
@@ -6579,6 +6657,32 @@ function RecurringView() {
       <Tile icon="percent" color="#D9526B" k="Share of income" v={M.avg3('income') > 0 ? fmtP(totalM / M.avg3('income'), 1) : '—'}
         sub="of your three-month average income" />
     </div></Blk>
+      <Blk id="bymonth" name="Month by month" hint="What the bills come to over the next twelve months">
+    {active.length > 0 && <Card title="Month by month" icon="chart"
+      info="What your bills come to in each of the next twelve months. The dashed line is what goes out every month whatever happens; anything standing above it is a yearly bill landing in that month. A once-a-year payment counts in the month it actually leaves your account, which is why some months are dearer than others, and why the monthly average on its own cannot tell you which."
+      right={<button className="btn sm ghost" onClick={() => navigate('calendar')}><Icon name="calendar" size={11} /> Calendar</button>}>
+      <div className="nwg-sum">
+        <div><span>Next twelve months</span><b className="num">{fmt(billsYear)}</b></div>
+        <div><span>Dearest &mdash; {mLabel(billMonths[dearest])}</span>
+          <b className="num" style={{color: billSeries[dearest] > monthlyOnly + 0.005 ? 'var(--amber)' : undefined}}>{fmt(billSeries[dearest])}</b></div>
+      </div>
+      <MonthBars months={billMonths} values={billSeries} baseline={monthlyOnly} height={230}
+        names={billMonths.map((k: string) => yearlyIn(k).map((r: any) => r.name))} />
+      {/* The same twelve figures written out. The chart says which month to brace for; only a
+          number says how much to put aside for it. */}
+      <div className="nwg-head">
+        <span className="nwg-m">Month</span><span className="nwg-v">Goes out</span>
+        <span className="nwg-d">On top</span><span className="nwg-bar" style={{background: 'transparent'}} />
+      </div>
+      {billMonths.map((k: string, i: number) => { const extra = billSeries[i] - monthlyOnly; const why = yearlyIn(k);
+        return <div className="nwg-row bills-row" key={k}>
+          <span className="nwg-m">{mLabel(k)}{i === 0 && <i className="nwg-now">this month</i>}</span>
+          <span className="nwg-v num">{fmt(billSeries[i])}</span>
+          <span className="nwg-d num" style={{color: extra > 0.005 ? 'var(--amber)' : 'var(--dim)'}}>{extra > 0.005 ? fmtS(extra) : '\u2014'}</span>
+          <span className="nwg-bar"><i style={{width: Math.max(3, billSeries[i] / billMax * 100) + '%', background: '#A98FD9'}} /></span>
+          {why.length > 0 && <span className="bills-why">{why.map((r: any) => r.name).join(' \u00b7 ')}</span>}
+        </div>; })}
+    </Card>}</Blk>
       <Blk id="monthly" name="Monthly payments" hint="The bills that go out every month">
     <Card title="Monthly payments" icon="refresh" info="The bills and subscriptions you pay every month, and what they add up to." pad0><div style={{padding: '0 6px 6px'}}><Tbl rows={byNextDue(list.filter((r: any) => r.freq === 'monthly'))} /></div></Card>
     {/* an empty table is a column of headings, the monthly card above is where you start,
